@@ -4,6 +4,7 @@ import os
 import sys
 import traceback
 import time
+import re
 
 import mysql.connector
 
@@ -358,6 +359,9 @@ def main():
             "gpu_memory": args.gpu_memory,
             "validation": args.validation,
             "no_pandas": args.no_pandas,
+            "parallel_validation": args.parallel_validation,
+            "save_pd_etl_res": args.save_pd_etl_res,
+            "use_saved_pd_etl_res": args.use_saved_pd_etl_res,
         }
 
         if not args.no_ibis:
@@ -391,17 +395,18 @@ def main():
             parameters["fragments_size"] = args.fragments_size
             parameters["dec_precision"] = args.dec_precision
             parameters["dec_scale"] = args.dec_scale
-            parameters["parallel_validation"] = args.parallel_validation
-            parameters["save_pd_etl_res"] = args.save_pd_etl_res
-            parameters["use_saved_pd_etl_res"] = args.use_saved_pd_etl_res
 
-        if parameters["validation"] and (parameters["no_pandas"] or parameters["no_ibis"]) and not parameters["use_saved_pd_etl_res"]:
+        if (
+            parameters["validation"]
+            and (parameters["no_pandas"] or parameters["no_ibis"])
+            and not parameters["use_saved_pd_etl_res"]
+        ):
             parameters["validation"] = False
             print("WARNING: validation was turned off as it requires both sides to compare.")
 
         etl_results = []
         ml_results = []
-        #print(parameters)
+        # print(parameters)
         run_id = int(round(time.time()))
         for iter_num in range(1, args.iterations + 1):
             print(f"Iteration #{iter_num}")
@@ -433,6 +438,8 @@ def main():
                     backend_res["dec_precision"] = args.dec_precision
                     backend_res["dec_scale"] = args.dec_scale
                     backend_res["parallel_validation"] = args.parallel_validation
+                    rows_number = re.split(".csv", re.split("train", args.data_file)[1])[0]
+                    backend_res["data_file_rows_imported"] = int(rows_number) if rows_number else 0
                     etl_results.append(backend_res)
             for backend_res in result["ML"]:
                 if backend_res:

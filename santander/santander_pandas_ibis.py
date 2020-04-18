@@ -29,7 +29,14 @@ warnings.filterwarnings("ignore")
 # 2) Patched Ibis version (https://github.com/intel-go/ibis/tree/develop)
 
 
-def etl_pandas(filename, columns_names, columns_types, etl_keys, save_res=False, saved_res_csv_name="santander_pd_etl_result.csv"):
+def etl_pandas(
+    filename,
+    columns_names,
+    columns_types,
+    etl_keys,
+    save_res=False,
+    saved_res_csv_name="santander_pd_etl_result.csv",
+):
     etl_times = {key: 0.0 for key in etl_keys}
 
     t0 = timer()
@@ -359,7 +366,6 @@ def run_benchmark(parameters):
     gt1_cols = ["var_%s_gt1" % i for i in range(200)]
     columns_names = ["ID_code", "target"] + var_cols
     columns_types_pd = ["object", "int64"] + ["float64" for _ in range(200)]
-    columns_types_ibis = ["string", "int32"] + [f"decimal({parameters['dec_precision']}, {parameters['dec_scale']})" for _ in range(200)]
 
     etl_keys = ["t_readcsv", "t_etl", "t_connect", "t_validation", "validation_succed"]
     ml_keys = ["t_train_test_split", "t_ml", "t_train", "t_inference", "t_dmatrix"]
@@ -374,6 +380,9 @@ def run_benchmark(parameters):
             )
 
         if not parameters["no_ibis"]:
+            columns_types_ibis = ["string", "int32"] + [
+                f"decimal({parameters['dec_precision']}, {parameters['dec_scale']})" for _ in range(200)
+            ]
             ml_data_ibis, etl_times_ibis = etl_ibis(
                 filename=parameters["data_file"],
                 run_import_queries=False,
