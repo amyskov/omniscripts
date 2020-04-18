@@ -361,7 +361,7 @@ def run_benchmark(parameters):
     columns_types_pd = ["object", "int64"] + ["float64" for _ in range(200)]
     columns_types_ibis = ["string", "int32"] + [f"decimal({parameters['dec_precision']}, {parameters['dec_scale']})" for _ in range(200)]
 
-    etl_keys = ["t_readcsv", "t_etl", "t_connect", "t_validation"]
+    etl_keys = ["t_readcsv", "t_etl", "t_connect", "t_validation", "validation_succed"]
     ml_keys = ["t_train_test_split", "t_ml", "t_train", "t_inference", "t_dmatrix"]
     ml_score_keys = ["mse", "cod"]
     try:
@@ -448,15 +448,23 @@ def run_benchmark(parameters):
             # compare_dataframes doesn't sort pandas dataframes
             ml_data.sort_values(by=cols_to_sort, inplace=True)
 
-            etl_times_ibis["t_validation"] = compare_dataframes(
-                ibis_dfs=[ml_data_ibis],
-                pandas_dfs=[ml_data],
-                sort_cols=cols_to_sort,
-                drop_cols=[],
-                parallel_execution=parameters["parallel_validation"],
-            )
+            try:
+                etl_times_ibis["t_validation"] = compare_dataframes(
+                    ibis_dfs=[ml_data_ibis],
+                    pandas_dfs=[ml_data],
+                    sort_cols=cols_to_sort,
+                    drop_cols=[],
+                    parallel_execution=parameters["parallel_validation"],
+                )
+            except AssertionError as exc:
+                print("Validation failed:", exc)
+                etl_times_ibis["validation_succed"] = False
+            else:
+                etl_times_ibis["validation_succed"] = True
+
             if etl_times:
                 etl_times["t_validation"] = etl_times_ibis["t_validation"]
+                etl_times["validation_succed"] = etl_times_ibis["validation_succed"]
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
     except Exception:

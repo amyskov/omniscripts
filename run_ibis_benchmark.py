@@ -33,7 +33,7 @@ def main():
 
     ignore_fields_for_bd_report_etl = ["t_connect"]
     ignore_fields_for_bd_report_ml = []
-    ignore_fields_for_results_unit_conversion = ["Backend"]
+    ignore_fields_for_results_unit_conversion = ["Backend", "validation_succed"]
 
     parser = argparse.ArgumentParser(description="Run internal tests from ibis project")
     optional = parser._action_groups.pop()
@@ -401,7 +401,7 @@ def main():
 
         etl_results = []
         ml_results = []
-        print(parameters)
+        #print(parameters)
         run_id = int(round(time.time()))
         for iter_num in range(1, args.iterations + 1):
             print(f"Iteration #{iter_num}")
