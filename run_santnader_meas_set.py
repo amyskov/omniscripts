@@ -26,7 +26,7 @@ def main():
         for rows in range(20, 101, 20)
     ]
     head_data_file_cmd = [
-        f"head ./santander/datasets/train.csv -n {rows * 10} > ./santander/datasets/train{str(rows)}.csv".split()
+        f"head ./santander/datasets/train.csv -n {rows * 1000} > ./santander/datasets/train{str(rows)}.csv".split()
         for rows in range(20, 101, 20)
     ]
 
@@ -145,8 +145,9 @@ def main():
         benchmark_cmd_template
         + benchmark_cmd_decimal_append
         + ["-dec_precision", str(number_precision), "-dec_scale", str(number_scale)]
-        for number_precision in range(7, 11)
-        for number_scale in range(1, 7)
+        for number_precision in range(4, 11)
+        for number_scale in range(2, 7)
+        if number_precision - number_scale > 1
     ]
 
     conda_env_base = CondaEnvironment("base")
@@ -167,23 +168,23 @@ def main():
         sys.exit(0)
 
 
-    # try:
-    #     if not os.path.exists(santander_data_dir):
-    #         os.mkdir(santander_data_dir)
-    #         shutil.copyfile(data_file_path, os.path.join(santander_data_dir, "train.csv"))
+    try:
+        if not os.path.exists(santander_data_dir):
+            os.mkdir(santander_data_dir)
+            shutil.copyfile(data_file_path, os.path.join(santander_data_dir, "train.csv"))
 
-    #     for cmd in head_data_file_cmd:
-    #         os.system(" ".join(cmd))
+        for cmd in head_data_file_cmd:
+            os.system(" ".join(cmd))
 
-    #     for cmd in benchmark_cmd_val_serial:
-    #         conda_env_base.run(cmd)
+        for cmd in benchmark_cmd_val_serial:
+            conda_env_base.run(cmd)
 
-    #     for cmd in benchmark_cmd_val_parallel:
-    #         conda_env_base.run(cmd)
+        for cmd in benchmark_cmd_val_parallel:
+            conda_env_base.run(cmd)
 
-    # finally:
-    #     if remove_datasets_dir:
-    #         os.remove(santander_data_dir)
+    finally:
+        if remove_datasets_dir:
+            os.remove(santander_data_dir)
 
 
 if __name__ == "__main__":
