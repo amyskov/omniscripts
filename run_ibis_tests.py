@@ -290,6 +290,45 @@ def main():
         "(This controls the lines to be used. Also work for CPU version. )",
         default=16,
     )
+    benchmark.add_argument(
+        "-dec_precision",
+        dest="dec_precision",
+        default=None,
+        type=int,
+        help="precision value for decimal(precision, scale) for Santander bench.",
+    )
+    benchmark.add_argument(
+        "-dec_scale",
+        dest="dec_scale",
+        default=None,
+        type=int,
+        help="scale value for decimal(precision, scale) for Santander bench.",
+    )
+    benchmark.add_argument(
+        "-parallel_validation",
+        default=False,
+        type=str_arg_to_bool,
+        help="Use multiprocessing to run ETL results validation",
+    )
+    benchmark.add_argument(
+        "-meas_set",
+        dest="meas_set",
+        default=0,
+        type=int,
+        help="Set of measurements (parameter for reporting into mysql).",
+    )
+    benchmark.add_argument(
+        "-save_pd_etl_res",
+        default=False,
+        type=str_arg_to_bool,
+        help="Save Pandas ETL query output table",
+    )
+    benchmark.add_argument(
+        "-use_saved_pd_etl_res",
+        default=False,
+        type=str_arg_to_bool,
+        help="Use previously saved Pandas ETL query output table",
+    )
     # MySQL database parameters
     mysql.add_argument(
         "-db_server", dest="db_server", default="localhost", help="Host name of MySQL server."
@@ -500,6 +539,12 @@ def main():
                 "multifrag_rs",
                 "fragments_size",
                 "omnisci_run_kwargs",
+                "dec_precision",
+                "dec_scale",
+                "parallel_validation",
+                "meas_set",
+                "save_pd_etl_res",
+                "use_saved_pd_etl_res",
             ]
             args_dict = vars(args)
             args_dict["data_file"] = f"'{args_dict['data_file']}'"

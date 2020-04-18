@@ -29,7 +29,7 @@ warnings.filterwarnings("ignore")
 # 2) Patched Ibis version (https://github.com/intel-go/ibis/tree/develop)
 
 
-def etl_pandas(filename, columns_names, columns_types, etl_keys):
+def etl_pandas(filename, columns_names, columns_types, etl_keys, save_res=False, saved_res_csv_name="santander_pd_etl_result.csv"):
     etl_times = {key: 0.0 for key in etl_keys}
 
     t0 = timer()
@@ -63,6 +63,13 @@ def etl_pandas(filename, columns_names, columns_types, etl_keys):
 
     train_pd = train_pd.drop(["ID_code"], axis=1)
     etl_times["t_etl"] = timer() - t_etl_begin
+
+    if save_res:
+        try:
+            train_pd.to_csv(saved_res_csv_name, index=False)
+        except Exception as exc:
+            print(exc)
+            sys.exit(0)
 
     return train_pd, etl_times
 
@@ -178,7 +185,7 @@ def etl_ibis(
             # decimal(8, 4) is converted to decimal(9, 6) in order to provide better data conversion
             # accuracy during import from Pandas into OmniSciDB for proper results validation
             columns_types = [
-                "decimal(9, 6)" if (x == "decimal(8, 4)") else x for x in columns_types
+                "decimal(9, 6)" if (x.stasrtswith("decimal")) else x for x in columns_types
             ]
             t_import_pandas, t_import_ibis = omnisci_server_worker.import_data_by_ibis(
                 table_name=table_name,
@@ -345,18 +352,20 @@ def run_benchmark(parameters):
     ml_times_ibis = None
     ml_times = None
 
+    etl_pandas_saved_res_csv_name = "./santander/santander_pd_etl_result.csv"
+
     var_cols = ["var_%s" % i for i in range(200)]
     count_cols = ["var_%s_count" % i for i in range(200)]
     gt1_cols = ["var_%s_gt1" % i for i in range(200)]
     columns_names = ["ID_code", "target"] + var_cols
     columns_types_pd = ["object", "int64"] + ["float64" for _ in range(200)]
-    columns_types_ibis = ["string", "int32"] + ["decimal(8, 4)" for _ in range(200)]
+    columns_types_ibis = ["string", "int32"] + [f"decimal({parameters['dec_precision']}, {parameters['dec_scale']})" for _ in range(200)]
 
-    etl_keys = ["t_readcsv", "t_etl", "t_connect"]
+    etl_keys = ["t_readcsv", "t_etl", "t_connect", "t_validation"]
     ml_keys = ["t_train_test_split", "t_ml", "t_train", "t_inference", "t_dmatrix"]
     ml_score_keys = ["mse", "cod"]
     try:
-        if not parameters["no_pandas"]:
+        if not parameters["no_pandas"] or parameters["use_saved_pd_etl_res"]:
             import_pandas_into_module_namespace(
                 namespace=run_benchmark.__globals__,
                 mode=parameters["pandas_mode"],
@@ -391,6 +400,8 @@ def run_benchmark(parameters):
                 columns_names=columns_names,
                 columns_types=columns_types_pd,
                 etl_keys=etl_keys,
+                save_res=parameters["save_pd_etl_res"],
+                saved_res_csv_name=etl_pandas_saved_res_csv_name,
             )
             print_results(results=etl_times, backend=parameters["pandas_mode"], unit="s")
             etl_times["Backend"] = parameters["pandas_mode"]
@@ -422,16 +433,30 @@ def run_benchmark(parameters):
             print("Validation of ETL query results ...")
             cols_to_sort = ["var_0", "var_1", "var_2", "var_3", "var_4"]
 
+            if parameters["use_saved_pd_etl_res"]:
+                ml_data = load_data_pandas(
+                    filename=etl_pandas_saved_res_csv_name,
+                    columns_names=None,
+                    columns_types=None,
+                    header=0,
+                    nrows=None,
+                    use_gzip=etl_pandas_saved_res_csv_name.endswith(".gz"),
+                    pd=run_benchmark.__globals__["pd"],
+                )
+
             ml_data_ibis = ml_data_ibis.rename(columns={"target0": "target"})
             # compare_dataframes doesn't sort pandas dataframes
             ml_data.sort_values(by=cols_to_sort, inplace=True)
 
-            compare_dataframes(
+            etl_times_ibis["t_validation"] = compare_dataframes(
                 ibis_dfs=[ml_data_ibis],
                 pandas_dfs=[ml_data],
                 sort_cols=cols_to_sort,
                 drop_cols=[],
+                parallel_execution=parameters["parallel_validation"],
             )
+            if etl_times:
+                etl_times["t_validation"] = etl_times_ibis["t_validation"]
 
         return {"ETL": [etl_times_ibis, etl_times], "ML": [ml_times_ibis, ml_times]}
     except Exception:

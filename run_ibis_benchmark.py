@@ -134,6 +134,45 @@ def main():
         help="specify the memory of your gpu, default 16. (This controls the lines to be used. Also work for CPU version. )",
         default=16,
     )
+    optional.add_argument(
+        "-dec_precision",
+        dest="dec_precision",
+        default=None,
+        type=int,
+        help="precision value for decimal(precision, scale) for Santander bench.",
+    )
+    optional.add_argument(
+        "-dec_scale",
+        dest="dec_scale",
+        default=None,
+        type=int,
+        help="scale value for decimal(precision, scale) for Santander bench.",
+    )
+    optional.add_argument(
+        "-parallel_validation",
+        default=False,
+        type=str_arg_to_bool,
+        help="Use multiprocessing to run ETL results validation",
+    )
+    optional.add_argument(
+        "-meas_set",
+        dest="meas_set",
+        default=None,
+        type=int,
+        help="Set of measurements (parameter for reporting into mysql).",
+    )
+    optional.add_argument(
+        "-save_pd_etl_res",
+        default=False,
+        type=str_arg_to_bool,
+        help="Save Pandas ETL query output table",
+    )
+    optional.add_argument(
+        "-use_saved_pd_etl_res",
+        default=False,
+        type=str_arg_to_bool,
+        help="Use previously saved Pandas ETL query output table",
+    )
     # MySQL database parameters
     optional.add_argument(
         "-db_server", dest="db_server", default="localhost", help="Host name of MySQL server.",
@@ -350,8 +389,13 @@ def main():
             parameters["dni"] = args.dni
             parameters["import_mode"] = args.import_mode
             parameters["fragments_size"] = args.fragments_size
+            parameters["dec_precision"] = args.dec_precision
+            parameters["dec_scale"] = args.dec_scale
+            parameters["parallel_validation"] = args.parallel_validation
+            parameters["save_pd_etl_res"] = args.save_pd_etl_res
+            parameters["use_saved_pd_etl_res"] = args.use_saved_pd_etl_res
 
-        if parameters["validation"] and (parameters["no_pandas"] or parameters["no_ibis"]):
+        if parameters["validation"] and (parameters["no_pandas"] or parameters["no_ibis"]) and not parameters["use_saved_pd_etl_res"]:
             parameters["validation"] = False
             print("WARNING: validation was turned off as it requires both sides to compare.")
 
@@ -385,6 +429,10 @@ def main():
                     )
                     backend_res["Iteration"] = iter_num
                     backend_res["run_id"] = run_id
+                    backend_res["meas_set"] = args.meas_set
+                    backend_res["dec_precision"] = args.dec_precision
+                    backend_res["dec_scale"] = args.dec_scale
+                    backend_res["parallel_validation"] = args.parallel_validation
                     etl_results.append(backend_res)
             for backend_res in result["ML"]:
                 if backend_res:
@@ -444,14 +492,15 @@ def main():
                             reporting_init_fields,
                         )
 
-                for result_etl in etl_results:
-                    remove_fields_from_dict(result_etl, ignore_fields_for_bd_report_etl)
-                    db_reporter_etl.submit(result_etl)
+                if iter_num == args.iterations:
+                    for result_etl in etl_results:
+                        remove_fields_from_dict(result_etl, ignore_fields_for_bd_report_etl)
+                        db_reporter_etl.submit(result_etl)
 
-                if len(ml_results) is not 0:
-                    for result_ml in ml_results:
-                        remove_fields_from_dict(result_ml, ignore_fields_for_bd_report_ml)
-                        db_reporter_ml.submit(result_ml)
+                    if len(ml_results) is not 0:
+                        for result_ml in ml_results:
+                            remove_fields_from_dict(result_ml, ignore_fields_for_bd_report_ml)
+                            db_reporter_ml.submit(result_ml)
 
     except Exception:
         traceback.print_exc(file=sys.stdout)

@@ -165,7 +165,8 @@ def compare_dataframes(
         print("dataframes are equal")
         return
 
-    print("Fast check took {:.2f} seconds".format(timer() - t0))
+    fast_check_time = timer() - t0
+    print("Fast check took {:.2f} seconds".format(fast_check_time))
 
     # comparing step
     t0 = timer()
@@ -187,9 +188,11 @@ def compare_dataframes(
             for column_name in ibis_df.columns:
                 compare_columns((ibis_df[column_name], pandas_df[column_name]))
 
-        print("Per-column check took {:.2f} seconds".format(timer() - t0))
+        per_column_check_time = timer() - t0
+        print("Per-column check took {:.2f} seconds".format(per_column_check_time))
 
     print("dataframes are equal")
+    return fast_check_time + per_column_check_time
 
 
 def load_data_pandas(
