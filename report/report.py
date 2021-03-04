@@ -27,8 +27,7 @@ class DbReport:
                 return "N/A"
 
         # System data from lscpu
-        data = subprocess.Popen(["lscpu"], stdout=subprocess.PIPE)
-        output = str(data.communicate()[0].strip().decode())
+        output = subprocess.run(["lscpu"], capture_output=True, text=True).stdout
         lscpu_values = {t: match_and_assign(t, p) for (t, p) in self.__lscpu_patterns.items()}
         self.__predefined_field_values.update(lscpu_values)
         # System data from /proc/meminfo
